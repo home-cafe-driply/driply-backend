@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: driply-backend
+  profiles:
+    active: dev
+    include: secret
