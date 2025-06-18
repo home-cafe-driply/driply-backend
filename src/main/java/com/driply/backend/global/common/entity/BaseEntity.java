@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @SuperBuilder(toBuilder = true)
-@ToString(of = {"createdAt", "updatedAt", "deleted", "deletedAt"})
+@ToString(of = {"createdAt", "updatedAt", "deleted"})
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
 public abstract class BaseEntity {
@@ -29,11 +29,12 @@ public abstract class BaseEntity {
     private LocalDateTime updatedAt;
 
     @Column(name = "deleted", nullable = false)
-    private Boolean deleted = false;
+    private boolean deleted = false;
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+/*
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
@@ -44,6 +45,7 @@ public abstract class BaseEntity {
             this.updatedAt = now;
         }
     }
+*/
 
     @PreUpdate
     protected void onUpdate() {
@@ -66,5 +68,13 @@ public abstract class BaseEntity {
             this.deleted = false;
             this.deletedAt = null;
         }
+    }
+
+    public boolean isActive() {
+        return !this.deleted;
+    }
+
+    public boolean isDeletedStateValid() {
+        return (deleted && deletedAt != null) || (!deleted && deletedAt == null);
     }
 }
