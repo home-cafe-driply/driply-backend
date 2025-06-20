@@ -1,20 +1,39 @@
+# 테스트 환경 설정
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:mem:testdb
     driver-class-name: org.h2.Driver
     username: sa
-    password:
+    password: ""
+
+  h2:
+    console:
+      enabled: true
 
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
       ddl-auto: create-drop
     show-sql: true
     properties:
       hibernate:
         format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+    defer-datasource-initialization: true
 
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+  sql:
+    init:
+      mode: never
+
+# 로깅 설정
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    com.driply.backend: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# 테스트 환경에서는 JWT 설정 단순화
+jwt:
+  secret: test-secret-key-for-testing-only-do-not-use-in-production
+  expiration: 3600000
