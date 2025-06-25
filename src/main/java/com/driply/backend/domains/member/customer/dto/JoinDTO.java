@@ -1,19 +1,19 @@
 package com.driply.backend.domains.member.customer.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-
-import java.time.LocalDate;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class JoinDTO {
 
     private String email;
-    private String userId;
-    private String pw;
-    private String pwConfirm;
+    private String password;
     private String name;
-    private LocalDate birth;
+    private String nickname;
     private String phone;
 }
