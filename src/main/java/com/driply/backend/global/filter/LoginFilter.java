@@ -25,6 +25,9 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
     public LoginFilter(AuthenticationManager authenticationManager, JWTUtil jwtUtil) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
+
+        setUsernameParameter("email");
+        setPasswordParameter("password");
     }
 
     @Override
@@ -59,8 +62,8 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
         GrantedAuthority auth = iterator.next();
         String role = auth.getAuthority();
 
-        // JWT 토큰 생성 (10시간 유효)
-        String token = jwtUtil.createJwt(email, role, 60*60*10L);
+        // JWT 토큰 생성
+        String token = jwtUtil.createJwt(email, role, 60 * 60 * 1000L);
 
         // 응답 헤더에 JWT 토큰 추가
         response.addHeader("Authorization", "Bearer " + token);
