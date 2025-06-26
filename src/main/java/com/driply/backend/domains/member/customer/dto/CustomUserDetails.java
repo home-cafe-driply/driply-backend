@@ -2,6 +2,7 @@ package com.driply.backend.domains.member.customer.dto;
 
 import com.driply.backend.domains.member.customer.entity.CustomerEntity;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.ArrayList;
@@ -18,12 +19,7 @@ public class CustomUserDetails implements UserDetails {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         Collection<GrantedAuthority> collection = new ArrayList<>();
-        collection.add(new GrantedAuthority() {
-            @Override
-            public String getAuthority() {
-                return "ROLE_USER"; // Customer는 모두 ROLE_USER (JWT로 Customer/Seller 구분)
-            }
-        });
+        collection.add(new SimpleGrantedAuthority("ROLE_CUSTOMER"));
         return collection;
     }
 
@@ -34,7 +30,7 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public String getUsername() {
-        return customerEntity.getEmail(); // username 대신 email 사용
+        return customerEntity.getEmail();
     }
 
     @Override
