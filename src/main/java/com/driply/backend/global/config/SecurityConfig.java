@@ -1,5 +1,6 @@
 package com.driply.backend.global.config;
 
+import com.driply.backend.global.filter.JWTFilter;
 import com.driply.backend.global.filter.LoginFilter;
 import com.driply.backend.global.util.JWTUtil;
 import org.springframework.context.annotation.Bean;
@@ -46,11 +47,15 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests((auth) -> auth
                         .requestMatchers("/login", "/", "/join").permitAll()
+                        .requestMatchers("/test", "/profile").permitAll()
                         .anyRequest().authenticated());
 
         http
                 .addFilterAt(new LoginFilter(authenticationManager(authenticationConfiguration), jwtUtil),
                         UsernamePasswordAuthenticationFilter.class);
+
+        http
+                .addFilterAfter(new JWTFilter(jwtUtil), LoginFilter.class);
 
         http
                 .sessionManagement((session) -> session
