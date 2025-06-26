@@ -54,7 +54,7 @@ public class JWTUtil {
         log.info("JWT 토큰 생성: email={}, role={}", email, role);
 
         return Jwts.builder()
-                .claim("email", email)     // username 대신 email
+                .claim("email", email)
                 .claim("role", role)
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + expiredMs))
