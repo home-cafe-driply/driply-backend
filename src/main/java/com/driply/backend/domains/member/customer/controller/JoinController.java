@@ -17,7 +17,7 @@ public class JoinController {
 
     @PostMapping("/join")
     public String joinProcess(JoinDTO joinDTO) {
-        System.out.println(joinDTO.getEmail()); // username 대신 email
+        System.out.println(joinDTO.getEmail());
         joinService.joinProcess(joinDTO);
         return "ok";
     }
