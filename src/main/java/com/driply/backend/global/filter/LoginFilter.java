@@ -77,7 +77,7 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
 
         log.warn("로그인 실패: {}", failed.getMessage());
 
-        // TODO: 실패 응답 처리
+        // 실패 응답 처리
         response.setStatus(401);
     }
 }
