@@ -1,6 +1,7 @@
 package com.driply.backend.domains.member.customer.dto;
 
 import com.driply.backend.domains.member.customer.entity.CustomerEntity;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -8,13 +9,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.ArrayList;
 import java.util.Collection;
 
+@RequiredArgsConstructor
 public class CustomUserDetails implements UserDetails {
 
     private final CustomerEntity customerEntity;
-
-    public CustomUserDetails(CustomerEntity customerEntity) {
-        this.customerEntity = customerEntity;
-    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

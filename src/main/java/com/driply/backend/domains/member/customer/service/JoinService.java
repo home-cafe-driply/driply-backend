@@ -3,20 +3,17 @@ package com.driply.backend.domains.member.customer.service;
 import com.driply.backend.domains.member.customer.dto.JoinDTO;
 import com.driply.backend.domains.member.customer.entity.CustomerEntity;
 import com.driply.backend.domains.member.customer.repository.CustomerRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+@RequiredArgsConstructor
 @Service
 public class JoinService {
 
     private final CustomerRepository customerRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
-
-    public JoinService(CustomerRepository customerRepository, BCryptPasswordEncoder bCryptPasswordEncoder) {
-        this.customerRepository = customerRepository;
-        this.bCryptPasswordEncoder = bCryptPasswordEncoder;
-    }
 
     public void joinProcess(JoinDTO joinDTO) {
         String email = joinDTO.getEmail();
