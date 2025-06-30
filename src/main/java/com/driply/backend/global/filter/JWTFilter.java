@@ -50,13 +50,15 @@ public class JWTFilter extends OncePerRequestFilter {
         }
 
         // 토큰에서 email과 role 획득
+        Long customerId = jwtUtil.getCustomerId(token);
         String email = jwtUtil.getEmail(token);  // getUsername() 대신 getEmail() 사용
         String role = jwtUtil.getRole(token);
 
-        log.info("JWT 토큰 검증 성공: email={}, role={}", email, role);
+        log.info("JWT 토큰 검증 성공: customerId={}, email={}, role={}", customerId, email, role);
 
         // CustomerEntity를 생성하여 값 set
         CustomerEntity customerEntity = CustomerEntity.builder()
+                .customerId(customerId)
                 .email(email)
                 .password("temp")  // 임시 비밀번호 (실제로는 사용되지 않음)
                 .name("JWT_CUSTOMER")  // 임시 이름
