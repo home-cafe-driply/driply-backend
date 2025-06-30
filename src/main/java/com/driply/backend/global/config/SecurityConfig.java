@@ -14,6 +14,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @RequiredArgsConstructor
@@ -22,6 +23,7 @@ public class SecurityConfig {
 
     private final AuthenticationConfiguration authenticationConfiguration;
     private final JWTUtil jwtUtil;
+    private final CorsConfigurationSource corsConfigurationSource;
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
@@ -33,30 +35,40 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http
-                .csrf(AbstractHttpConfigurer::disable);
+                // CORS 설정 적용
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
 
-        http
-                .formLogin(AbstractHttpConfigurer::disable);
+                // CSRF 비활성화 (JWT 사용시 불필요)
+                .csrf(AbstractHttpConfigurer::disable)
 
-        http
-                .httpBasic(AbstractHttpConfigurer::disable);
+                // Form 로그인 비활성화
+                .formLogin(AbstractHttpConfigurer::disable)
 
-        http
+                // HTTP Basic 인증 비활성화
+                .httpBasic(AbstractHttpConfigurer::disable)
+
+                // URL별 접근 권한 설정
                 .authorizeHttpRequests((auth) -> auth
+                        // 인증 불필요 경로
                         .requestMatchers("/login", "/", "/join").permitAll()
                         .requestMatchers("/test", "/profile").permitAll()
-                        .anyRequest().authenticated());
 
-        http
+                        // 관리자 페이지 접근 거부
+                        .requestMatchers("/admin").denyAll()
+
+                        // 나머지는 인증 필요
+                        .anyRequest().authenticated()
+                )
+
+                // JWT 필터 추가
                 .addFilterAt(new LoginFilter(authenticationManager(authenticationConfiguration), jwtUtil),
-                        UsernamePasswordAuthenticationFilter.class);
+                        UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new JWTFilter(jwtUtil), LoginFilter.class)
 
-        http
-                .addFilterAfter(new JWTFilter(jwtUtil), LoginFilter.class);
-
-        http
+                // 세션 사용 안함 (Stateless)
                 .sessionManagement((session) -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+
 
         return http.build();
     }
