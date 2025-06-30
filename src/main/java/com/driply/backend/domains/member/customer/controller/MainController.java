@@ -1,5 +1,6 @@
 package com.driply.backend.domains.member.customer.controller;
 
+import com.driply.backend.domains.member.customer.dto.CustomUserDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,12 +26,14 @@ public class MainController {
 
     @GetMapping("/profile")
     public String profilePage(Authentication authentication) {
-        // 파라미터로 Authentication 받는 방법
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+
+        Long customerId = userDetails.getCustomerId();
         String email = authentication.getName();
         String role = authentication.getAuthorities().toString();
 
-        log.info("프로필 페이지 접근: email={}, role={}", email, role);
+        log.info("프로필 페이지 접근: customerId={}, email={}, role={}", customerId, email, role);
 
-        return String.format("프로필 페이지 - 사용자: %s, 권한: %s", email, role);
+        return String.format("프로필 페이지 - ID: %d, 사용자: %s, 권한: %s", customerId, email, role);
     }
 }
