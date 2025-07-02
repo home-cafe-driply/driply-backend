@@ -3,6 +3,7 @@ package com.driply.backend.global.filter;
 import com.driply.backend.domains.member.customer.dto.CustomUserDetails;
 import com.driply.backend.domains.member.customer.entity.CustomerEntity;
 import com.driply.backend.global.util.JWTUtil;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 
 @Slf4j
 public class JWTFilter extends OncePerRequestFilter {
@@ -34,27 +36,79 @@ public class JWTFilter extends OncePerRequestFilter {
         if (authorization == null || !authorization.startsWith("Bearer ")) {
             log.debug("JWT 토큰이 없음 - 인증되지 않은 요청");
             filterChain.doFilter(request, response);
-            return; // 조건이 해당되면 메소드 종료 (필수)
+            return;
         }
 
         log.debug("JWT 토큰 검증 시작");
 
-        // Bearer 부분 제거 후 순수 토큰만 획득
-        String token = authorization.split(" ")[1];
+        // Bearer 제거
+        String accessToken = authorization.split(" ")[1];
 
-        // 토큰 소멸 시간 검증
-        if (jwtUtil.isExpired(token)) {
-            log.warn("JWT 토큰이 만료됨");
-            filterChain.doFilter(request, response);
-            return; // 조건이 해당되면 메소드 종료 (필수)
+        // 토큰 만료 여부 확인
+        try {
+            if (jwtUtil.isExpired(accessToken)) {
+                log.warn("JWT 토큰이 만료됨");
+                response.setContentType("text/plain; charset=UTF-8");
+                PrintWriter writer = response.getWriter();
+                writer.print("access token expired");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                return;
+            }
+        } catch (ExpiredJwtException e) {
+            log.warn("JWT 토큰 만료 예외: {}", e.getMessage());
+            response.setContentType("text/plain; charset=UTF-8");
+            PrintWriter writer = response.getWriter();
+            writer.print("access token expired");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        } catch (Exception e) {
+            log.warn("JWT 토큰 검증 중 오류: {}", e.getMessage());
+            response.setContentType("text/plain; charset=UTF-8");
+            PrintWriter writer = response.getWriter();
+            writer.print("invalid token");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
         }
 
-        // 토큰에서 email과 role 획득
-        Long customerId = jwtUtil.getCustomerId(token);
-        String email = jwtUtil.getEmail(token);  // getUsername() 대신 getEmail() 사용
-        String role = jwtUtil.getRole(token);
+        // 토큰 타입 검증
+        try {
+            String category = jwtUtil.getCategory(accessToken);
+            if (!"access".equals(category)) {
+                log.warn("유효하지 않은 토큰 타입: {}", category);
+                response.setContentType("text/plain; charset=UTF-8");
+                PrintWriter writer = response.getWriter();
+                writer.print("invalid access token");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                return;
+            }
+        } catch (Exception e) {
+            log.warn("토큰 타입 검증 실패: {}", e.getMessage());
+            response.setContentType("text/plain; charset=UTF-8");
+            PrintWriter writer = response.getWriter();
+            writer.print("invalid access token");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
 
-        log.info("JWT 토큰 검증 성공: customerId={}, email={}, role={}", customerId, email, role);
+        // 토큰에서 사용자 정보 추출
+        Long customerId;
+        String email;
+        String role;
+
+        try {
+            customerId = jwtUtil.getCustomerId(accessToken);
+            email = jwtUtil.getEmail(accessToken);
+            role = jwtUtil.getRole(accessToken);
+
+            log.info("JWT 토큰 검증 성공: customerId={}, email={}, role={}", customerId, email, role);
+        } catch (Exception e) {
+            log.warn("토큰에서 사용자 정보 추출 실패: {}", e.getMessage());
+            response.setContentType("text/plain; charset=UTF-8");
+            PrintWriter writer = response.getWriter();
+            writer.print("invalid token payload");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
 
         // CustomerEntity를 생성하여 값 set
         CustomerEntity customerEntity = CustomerEntity.builder()

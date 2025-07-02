@@ -3,9 +3,11 @@ package com.driply.backend.global.filter;
 import com.driply.backend.domains.member.customer.dto.CustomUserDetails;
 import com.driply.backend.global.util.JWTUtil;
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -34,7 +36,7 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
     public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response) throws AuthenticationException {
 
         // 클라이언트 요청에서 email, password 추출
-        String email = obtainUsername(request); // email을 username 필드로 사용
+        String email = obtainUsername(request); // email을 username 필드로
         String password = obtainPassword(request);
 
         log.info("로그인 시도: {}", email);
@@ -52,9 +54,9 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
 
         log.info("로그인 성공");
 
-        // UserDetailsService에서 반환한 CustomUserDetails 객체 추출
         CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
 
+        Long customerId = customUserDetails.getCustomerId();
         String email = customUserDetails.getUsername();
 
         Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
@@ -62,13 +64,37 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
         GrantedAuthority auth = iterator.next();
         String role = auth.getAuthority();
 
-        // JWT 토큰 생성
-        String token = jwtUtil.createJwt(email, role, 60 * 60 * 1000L);
+        String accessToken = jwtUtil.createAccessToken(customerId, email, role);
+        String refreshToken = jwtUtil.createRefreshToken(customerId, email, role);
 
-        // 응답 헤더에 JWT 토큰 추가
-        response.addHeader("Authorization", "Bearer " + token);
+        // Access Token: Authorization 헤더
+        response.setHeader("Authorization", "Bearer " + accessToken);
 
-        log.info("JWT 토큰 발급 완료: email={}, role={}", email, role);
+        // Refresh Token: HttpOnly 쿠키
+        response.addCookie(createCookie(refreshToken, jwtUtil.getRefreshExpirationMs()));
+
+        response.setStatus(HttpStatus.OK.value());
+
+        log.info("JWT 토큰 발급 완료: customerId={}, email={}, role={}", customerId, email, role);
+        log.info("Access Token 만료: {}분, Refresh Token 만료: {}시간",
+                jwtUtil.getAccessExpirationMs() / (1000 * 60),
+                jwtUtil.getRefreshExpirationMs() / (1000 * 60 * 60));
+    }
+
+    private Cookie createCookie(String value, Long expireMs) {
+        Cookie cookie = new Cookie("refresh", value);
+
+        //(밀리초 → 초 변환)
+        int maxAgeSec = (int) (expireMs / 1000);
+        cookie.setMaxAge(maxAgeSec);
+
+        cookie.setHttpOnly(true);       // JavaScript 접근 차단
+        // cookie.setSecure(true);      // HTTPS
+        // cookie.setPath("/");         // 쿠키 유효 경로
+
+        log.info("Refresh Token 쿠키 생성: key={}, maxAge={}초 ({}시간), httpOnly=true",
+                "refresh", maxAgeSec, maxAgeSec / 3600);
+        return cookie;
     }
 
     // 로그인 실패시
