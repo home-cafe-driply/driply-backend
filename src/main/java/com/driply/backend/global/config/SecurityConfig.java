@@ -51,6 +51,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests((auth) -> auth
                         // 인증 불필요 경로
                         .requestMatchers("/login", "/", "/join").permitAll()
+                        .requestMatchers("/api/auth/refresh").permitAll()
                         .requestMatchers("/test", "/profile").permitAll()
 
                         // 관리자 페이지 접근 거부
