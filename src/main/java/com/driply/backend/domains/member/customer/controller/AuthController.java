@@ -21,5 +21,109 @@ public class AuthController {
 
     private final JWTUtil jwtUtil;
 
+    /**
+     * Access Token 갱신 API
+     * Refresh Token(쿠키)을 받아서 새로운 Access Token을 발급
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<String> refreshAccessToken(HttpServletRequest request, HttpServletResponse response) {
+
+        log.info("Access Token 갱신 요청");
+
+        // 1. 쿠키에서 Refresh Token 추출
+        String refreshToken = null;
+        Cookie[] cookies = request.getCookies();
+
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("refresh".equals(cookie.getName())) {
+                    refreshToken = cookie.getValue();
+                    break;
+                }
+            }
+        }
+
+        if (refreshToken == null) {
+            log.warn("Refresh Token이 쿠키에 없음");
+            return new ResponseEntity<>("refresh token null", HttpStatus.BAD_REQUEST);
+        }
+
+        // 2. Refresh Token 만료 여부 확인
+        try {
+            if (jwtUtil.isExpired(refreshToken)) {
+                log.warn("Refresh Token이 만료됨");
+                return new ResponseEntity<>("refresh token expired", HttpStatus.BAD_REQUEST);
+            }
+        } catch (ExpiredJwtException e) {
+            log.warn("Refresh Token 만료 예외: {}", e.getMessage());
+            return new ResponseEntity<>("refresh token expired", HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            log.warn("Refresh Token 검증 중 오류: {}", e.getMessage());
+            return new ResponseEntity<>("invalid refresh token", HttpStatus.BAD_REQUEST);
+        }
+
+        // 3. Refresh Token 타입 검증
+        try {
+            String category = jwtUtil.getCategory(refreshToken);
+            if (!"refresh".equals(category)) {
+                log.warn("유효하지 않은 토큰 타입: {}", category);
+                return new ResponseEntity<>("invalid refresh token", HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            log.warn("토큰 타입 검증 실패: {}", e.getMessage());
+            return new ResponseEntity<>("invalid refresh token", HttpStatus.BAD_REQUEST);
+        }
+
+        // 4. Refresh Token에서 사용자 정보 추출
+        Long customerId;
+        String email;
+        String role;
+
+        try {
+            customerId = jwtUtil.getCustomerId(refreshToken);
+            email = jwtUtil.getEmail(refreshToken);
+            role = jwtUtil.getRole(refreshToken);
+
+            log.info("Refresh Token에서 사용자 정보 추출: customerId={}, email={}, role={}",
+                    customerId, email, role);
+        } catch (Exception e) {
+            log.warn("사용자 정보 추출 실패: {}", e.getMessage());
+            return new ResponseEntity<>("invalid refresh token payload", HttpStatus.BAD_REQUEST);
+        }
+
+        // 5. 새로운 Access Token 생성
+        String newAccessToken = jwtUtil.createAccessToken(customerId, email, role);
+        String newRefreshToken = jwtUtil.createRefreshToken(customerId, email, role);
+
+        // 6. 응답 헤더에 새 Access Token 설정
+        response.setHeader("Authorization", "Bearer " + newAccessToken);
+
+        // 새로운 Refresh Token을 쿠키에 설정 (기존 쿠키 덮어쓰기)
+        response.addCookie(createCookie("refresh", newRefreshToken, jwtUtil.getRefreshExpirationMs()));
+
+        log.info("토큰 갱신 완료 (Rotation): customerId={}, Access Token={}분, Refresh Token={}시간",
+                customerId,
+                jwtUtil.getAccessExpirationMs() / (1000 * 60),
+                jwtUtil.getRefreshExpirationMs() / (1000 * 60 * 60));
+
+        return new ResponseEntity<>("tokens renewed with rotation", HttpStatus.OK);
+    }
+
+
+    private Cookie createCookie(String key, String value, Long expireMs) {
+        Cookie cookie = new Cookie(key, value);
+
+        // JWT 토큰과 동일한 만료시간으로 설정 (밀리초 → 초 변환)
+        int maxAgeSec = (int) (expireMs / 1000);
+        cookie.setMaxAge(maxAgeSec);
+
+        cookie.setHttpOnly(true);       // JavaScript 접근 차단 (XSS 방어)
+        // cookie.setSecure(true);      // HTTPS에서만 전송 (운영환경에서 활성화)
+        // cookie.setPath("/");         // 쿠키 유효 경로 (기본값 사용)
+
+        log.debug("새로운 Refresh Token 쿠키 생성: key={}, maxAge={}초 ({}시간), httpOnly=true",
+                key, maxAgeSec, maxAgeSec / 3600);
+        return cookie;
+    }
 
 }
