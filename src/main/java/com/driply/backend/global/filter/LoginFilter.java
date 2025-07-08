@@ -1,6 +1,8 @@
 package com.driply.backend.global.filter;
 
 import com.driply.backend.domains.member.customer.dto.CustomUserDetails;
+import com.driply.backend.domains.member.customer.entity.RefreshTokenEntity;
+import com.driply.backend.domains.member.customer.repository.RefreshTokenRepository;
 import com.driply.backend.global.util.JWTUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.Cookie;
@@ -16,6 +18,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.util.Collection;
+import java.util.Date;
 import java.util.Iterator;
 
 @Slf4j
@@ -23,10 +26,14 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
 
     private final AuthenticationManager authenticationManager;
     private final JWTUtil jwtUtil;
+    private final RefreshTokenRepository refreshTokenRepository; // 🆕 추가
 
-    public LoginFilter(AuthenticationManager authenticationManager, JWTUtil jwtUtil) {
+    public LoginFilter(AuthenticationManager authenticationManager
+            , JWTUtil jwtUtil
+            , RefreshTokenRepository refreshTokenRepository) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
+        this.refreshTokenRepository = refreshTokenRepository;
 
         setUsernameParameter("email");
         setPasswordParameter("password");
@@ -67,6 +74,8 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
         String accessToken = jwtUtil.createAccessToken(customerId, email, role);
         String refreshToken = jwtUtil.createRefreshToken(customerId, email, role);
 
+        addRefreshEntity(customerId, refreshToken, jwtUtil.getRefreshExpirationMs());
+
         // Access Token: Authorization 헤더
         response.setHeader("Authorization", "Bearer " + accessToken);
 
@@ -95,6 +104,21 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
         log.info("Refresh Token 쿠키 생성: key={}, maxAge={}초 ({}시간), httpOnly=true",
                 "refresh", maxAgeSec, maxAgeSec / 3600);
         return cookie;
+    }
+
+    private void addRefreshEntity(Long customerId, String refresh, Long expiredMs) {
+        // 만료 시간 계산 (현재 시간 + 만료 기간)
+        Date expireDate = new Date(System.currentTimeMillis() + expiredMs);
+        String expiration = expireDate.toString();
+
+        RefreshTokenEntity refreshEntity = new RefreshTokenEntity();
+        refreshEntity.setCustomerId(customerId);
+        refreshEntity.setRefresh(refresh);
+        refreshEntity.setExpiration(expiration);
+
+        refreshTokenRepository.save(refreshEntity);
+
+        log.info("Refresh Token DB 저장 완료: customerId={}", customerId);
     }
 
     // 로그인 실패시
