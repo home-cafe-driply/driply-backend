@@ -1,5 +1,6 @@
 package com.driply.backend.global.config;
 
+import com.driply.backend.domains.member.customer.repository.RefreshTokenRepository;
 import com.driply.backend.global.filter.JWTFilter;
 import com.driply.backend.global.filter.LoginFilter;
 import com.driply.backend.global.util.JWTUtil;
@@ -24,6 +25,7 @@ public class SecurityConfig {
     private final AuthenticationConfiguration authenticationConfiguration;
     private final JWTUtil jwtUtil;
     private final CorsConfigurationSource corsConfigurationSource;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
@@ -62,7 +64,7 @@ public class SecurityConfig {
                 )
 
                 // JWT 필터 추가
-                .addFilterAt(new LoginFilter(authenticationManager(authenticationConfiguration), jwtUtil),
+                .addFilterAt(new LoginFilter(authenticationManager(authenticationConfiguration), jwtUtil, refreshTokenRepository),
                         UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(new JWTFilter(jwtUtil), LoginFilter.class)
 
