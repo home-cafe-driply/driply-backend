@@ -1,6 +1,7 @@
 package com.driply.backend.global.config;
 
 import com.driply.backend.domains.member.customer.repository.RefreshTokenRepository;
+import com.driply.backend.global.filter.CustomLogoutFilter;
 import com.driply.backend.global.filter.JWTFilter;
 import com.driply.backend.global.filter.LoginFilter;
 import com.driply.backend.global.util.JWTUtil;
@@ -15,6 +16,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
@@ -54,6 +56,7 @@ public class SecurityConfig {
                         // 인증 불필요 경로
                         .requestMatchers("/login", "/", "/join").permitAll()
                         .requestMatchers("/api/auth/refresh").permitAll()
+                        .requestMatchers("/logout").permitAll()
                         .requestMatchers("/test", "/profile").permitAll()
 
                         // 관리자 페이지 접근 거부
@@ -62,6 +65,8 @@ public class SecurityConfig {
                         // 나머지는 인증 필요
                         .anyRequest().authenticated()
                 )
+
+                .addFilterBefore(new CustomLogoutFilter(jwtUtil, refreshTokenRepository), LogoutFilter.class)
 
                 // JWT 필터 추가
                 .addFilterAt(new LoginFilter(authenticationManager(authenticationConfiguration), jwtUtil, refreshTokenRepository),
