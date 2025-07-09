@@ -1,5 +1,6 @@
 package com.driply.backend.domains.member.customer.controller;
 
+import com.driply.backend.domains.member.customer.service.RefreshTokenService;
 import com.driply.backend.global.util.JWTUtil;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.http.Cookie;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final JWTUtil jwtUtil;
+    private final RefreshTokenService refreshTokenService;
 
     /**
      * Access Token 갱신 API
@@ -74,7 +76,13 @@ public class AuthController {
             return new ResponseEntity<>("invalid refresh token", HttpStatus.BAD_REQUEST);
         }
 
-        // 4. Refresh Token에서 사용자 정보 추출
+        // 4. 🆕 DB에서 Refresh Token 존재 여부 확인
+        if (!refreshTokenService.isValidRefreshToken(refreshToken)) {
+            log.warn("DB에 존재하지 않는 Refresh Token");
+            return new ResponseEntity<>("invalid refresh token", HttpStatus.BAD_REQUEST);
+        }
+
+        // 5. JWT에서 사용자 정보 추출
         Long customerId;
         String email;
         String role;
@@ -91,14 +99,17 @@ public class AuthController {
             return new ResponseEntity<>("invalid refresh token payload", HttpStatus.BAD_REQUEST);
         }
 
-        // 5. 새로운 Access Token 생성
+        // 6. 새로운 Access Token 생성
         String newAccessToken = jwtUtil.createAccessToken(customerId, email, role);
+
+        // 7. 🆕 Refresh Token 갱신 (Rotation 방식으로 DB에서 처리)
+        refreshTokenService.renewRefreshToken(refreshToken, customerId, email, role);
+
+        // 8. 새 Refresh Token 생성 (renewRefreshToken에서 생성된 것을 다시 가져와야 함)
         String newRefreshToken = jwtUtil.createRefreshToken(customerId, email, role);
 
-        // 6. 응답 헤더에 새 Access Token 설정
+        // 8. 응답 헤더 설정
         response.setHeader("Authorization", "Bearer " + newAccessToken);
-
-        // 새로운 Refresh Token을 쿠키에 설정 (기존 쿠키 덮어쓰기)
         response.addCookie(createCookie("refresh", newRefreshToken, jwtUtil.getRefreshExpirationMs()));
 
         log.info("토큰 갱신 완료 (Rotation): customerId={}, Access Token={}분, Refresh Token={}시간",
