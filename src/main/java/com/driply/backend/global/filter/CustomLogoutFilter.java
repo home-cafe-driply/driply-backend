@@ -61,12 +61,20 @@ public class CustomLogoutFilter extends GenericFilterBean {
             }
         }
 
+        // 🆕 첫 번째 디버깅 로그 추가 위치 (여기!)
+        log.info("로그아웃 시 쿠키에서 추출한 refresh token: {}",
+                refresh != null ? refresh.substring(0, 20) + "..." : "null");
+
         // 3. refresh token null check
         if (refresh == null) {
             log.warn("로그아웃 요청에 refresh token이 없음");
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             return;
         }
+
+        // 🆕 두 번째 디버깅 로그 추가 위치 (여기!)
+        log.info("로그아웃 전 DB에서 토큰 존재 여부: {}",
+                refreshTokenRepository.existsByRefresh(refresh));
 
         // 4. JWT 만료 여부 확인
         boolean isExpired = false;
