@@ -53,9 +53,9 @@ public class RefreshTokenService {
 
     /**
      * Refresh Token 갱신 (Rotation 방식)
-     * 기존 토큰 삭제 후 새 토큰 저장
+     * 기존 토큰 삭제 후 새 토큰 저장하고 반환
      */
-    public void renewRefreshToken(String oldRefreshToken, Long customerId, String email, String role) {
+    public String renewRefreshToken(String oldRefreshToken, Long customerId, String email, String role) {
         // 1. 기존 토큰 삭제
         deleteRefreshToken(oldRefreshToken);
 
@@ -64,5 +64,7 @@ public class RefreshTokenService {
         saveRefreshToken(customerId, newRefreshToken, jwtUtil.getRefreshExpirationMs());
 
         log.info("Refresh Token 갱신 완료 (Rotation): customerId={}", customerId);
+
+        return newRefreshToken;  // 🆕 새 토큰 반환 추가
     }
 }
