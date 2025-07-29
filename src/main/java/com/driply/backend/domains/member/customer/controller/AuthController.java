@@ -45,6 +45,15 @@ public class AuthController {
             }
         }
 
+        // 🆕 추가: 쿠키 값 로그
+        log.info("쿠키에서 추출한 refresh token: {}", refreshToken != null ? refreshToken.substring(0, 20) + "..." : "null");
+
+        // 🆕 추가: DB 존재 여부 확인 전에 직접 로그
+        if (refreshToken != null) {
+            boolean exists = refreshTokenService.isValidRefreshToken(refreshToken);
+            log.info("DB에서 토큰 존재 여부: {}", exists);
+        }
+
         if (refreshToken == null) {
             log.warn("Refresh Token이 쿠키에 없음");
             return new ResponseEntity<>("refresh token null", HttpStatus.BAD_REQUEST);
@@ -103,10 +112,7 @@ public class AuthController {
         String newAccessToken = jwtUtil.createAccessToken(customerId, email, role);
 
         // 7. 🆕 Refresh Token 갱신 (Rotation 방식으로 DB에서 처리)
-        refreshTokenService.renewRefreshToken(refreshToken, customerId, email, role);
-
-        // 8. 새 Refresh Token 생성 (renewRefreshToken에서 생성된 것을 다시 가져와야 함)
-        String newRefreshToken = jwtUtil.createRefreshToken(customerId, email, role);
+        String newRefreshToken = refreshTokenService.renewRefreshToken(refreshToken, customerId, email, role);
 
         // 8. 응답 헤더 설정
         response.setHeader("Authorization", "Bearer " + newAccessToken);
