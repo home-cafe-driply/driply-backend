@@ -59,6 +59,9 @@ public class SecurityConfig {
                         .requestMatchers("/logout").permitAll()
                         .requestMatchers("/test", "/profile").permitAll()
 
+                        // 판매자 회원가입 허용 추가
+                        .requestMatchers("/api/seller/*").permitAll()  // POST /api/seller
+
                         // 관리자 페이지 접근 거부
                         .requestMatchers("/admin").denyAll()
 
