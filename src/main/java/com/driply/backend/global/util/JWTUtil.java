@@ -34,6 +34,8 @@ public class JWTUtil {
                 refreshExpirationMs, refreshExpirationMs / (1000 * 60 * 60));
     }
 
+    // ============= Customer 관련 메서드들 =============
+
     public Long getCustomerId(String token) {
         return Jwts.parser()
                 .verifyWith(secretKey)
@@ -42,6 +44,19 @@ public class JWTUtil {
                 .getPayload()
                 .get("customerId", Long.class);
     }
+
+    // ============= Seller 관련 메서드들 =============
+
+    public Long getSellerId(String token) {
+        return Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get("sellerId", Long.class);
+    }
+
+    // ============= 공통 메서드들 =============
 
     public String getEmail(String token) {
         return Jwts.parser()
@@ -89,31 +104,73 @@ public class JWTUtil {
                 .before(new Date());
     }
 
-    // Access Token
-    public String createAccessToken(Long customerId, String email, String role) {
-        return createJwt("access", customerId, email, role, accessExpirationMs);
+    // ============= Customer 토큰 생성 =============
+
+    public String createCustomerAccessToken(Long customerId, String email, String role) {
+        return createCustomerJwt("access", customerId, email, role, accessExpirationMs);
     }
 
-    // Refresh Token
-    public String createRefreshToken(Long customerId, String email, String role) {
-        return createJwt("refresh", customerId, email, role, refreshExpirationMs);
+    public String createCustomerRefreshToken(Long customerId, String email, String role) {
+        return createCustomerJwt("refresh", customerId, email, role, refreshExpirationMs);
     }
 
-    public String createJwt(String category, Long customerId, String email, String role, Long expiredMs) {
-        log.info("JWT 토큰 생성: category={}, customerId={}, email={}, role={}, expiredMs={}ms",
+    public String createCustomerJwt(String category, Long customerId, String email, String role, Long expiredMs) {
+        log.info("Customer JWT 토큰 생성: category={}, customerId={}, email={}, role={}, expiredMs={}ms",
                 category, customerId, email, role, expiredMs);
 
         return Jwts.builder()
-                .claim("category", category)        // 토큰 타입
-                .claim("customerId", customerId)    // 고객 ID
-                .claim("email", email)              // 이메일
-                .claim("role", role)                // 권한
-                .subject(String.valueOf(customerId))    // JWT 표준 subject
+                .claim("category", category)
+                .claim("customerId", customerId)
+                .claim("email", email)
+                .claim("role", role)
+                .subject(String.valueOf(customerId))
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + expiredMs))
                 .signWith(secretKey)
                 .compact();
     }
+
+    // ============= Seller 토큰 생성 =============
+
+    public String createSellerAccessToken(Long sellerId, String email, String role) {
+        return createSellerJwt("access", sellerId, email, role, accessExpirationMs);
+    }
+
+    public String createSellerRefreshToken(Long sellerId, String email, String role) {
+        return createSellerJwt("refresh", sellerId, email, role, refreshExpirationMs);
+    }
+
+    public String createSellerJwt(String category, Long sellerId, String email, String role, Long expiredMs) {
+        log.info("Seller JWT 토큰 생성: category={}, sellerId={}, email={}, role={}, expiredMs={}ms",
+                category, sellerId, email, role, expiredMs);
+
+        return Jwts.builder()
+                .claim("category", category)
+                .claim("sellerId", sellerId)
+                .claim("email", email)
+                .claim("role", role)
+                .subject(String.valueOf(sellerId))
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(new Date(System.currentTimeMillis() + expiredMs))
+                .signWith(secretKey)
+                .compact();
+    }
+
+    // ============= 기존 메서드들 (Customer 호환성) =============
+
+    public String createAccessToken(Long customerId, String email, String role) {
+        return createCustomerAccessToken(customerId, email, role);
+    }
+
+    public String createRefreshToken(Long customerId, String email, String role) {
+        return createCustomerRefreshToken(customerId, email, role);
+    }
+
+    public String createJwt(String category, Long customerId, String email, String role, Long expiredMs) {
+        return createCustomerJwt(category, customerId, email, role, expiredMs);
+    }
+
+    // ============= 검증 메서드들 =============
 
     public boolean isAccessToken(String token) {
         String category = getCategory(token);
@@ -139,6 +196,26 @@ public class JWTUtil {
             return !isExpired(token) && isRefreshToken(token);
         } catch (Exception e) {
             log.warn("Refresh Token 검증 실패: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    // ============= 사용자 타입 구분 =============
+
+    public boolean isCustomerToken(String token) {
+        try {
+            String role = getRole(token);
+            return "ROLE_CUSTOMER".equals(role);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean isSellerToken(String token) {
+        try {
+            String role = getRole(token);
+            return "ROLE_SELLER".equals(role);
+        } catch (Exception e) {
             return false;
         }
     }
