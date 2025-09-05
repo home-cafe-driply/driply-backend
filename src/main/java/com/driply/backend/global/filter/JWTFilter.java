@@ -2,6 +2,8 @@ package com.driply.backend.global.filter;
 
 import com.driply.backend.domains.member.customer.dto.CustomUserDetails;
 import com.driply.backend.domains.member.customer.entity.CustomerEntity;
+import com.driply.backend.domains.member.seller.dto.SellerUserDetails;
+import com.driply.backend.domains.member.seller.entity.SellerEntity;
 import com.driply.backend.global.util.JWTUtil;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
@@ -12,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -91,16 +94,14 @@ public class JWTFilter extends OncePerRequestFilter {
         }
 
         // 토큰에서 사용자 정보 추출
-        Long customerId;
         String email;
         String role;
 
         try {
-            customerId = jwtUtil.getCustomerId(accessToken);
             email = jwtUtil.getEmail(accessToken);
             role = jwtUtil.getRole(accessToken);
 
-            log.info("JWT 토큰 검증 성공: customerId={}, email={}, role={}", customerId, email, role);
+            log.info("JWT 토큰 검증 성공: email={}, role={}", email, role);
         } catch (Exception e) {
             log.warn("토큰에서 사용자 정보 추출 실패: {}", e.getMessage());
             response.setContentType("text/plain; charset=UTF-8");
@@ -110,26 +111,55 @@ public class JWTFilter extends OncePerRequestFilter {
             return;
         }
 
-        // CustomerEntity를 생성하여 값 set
-        CustomerEntity customerEntity = CustomerEntity.builder()
-                .customerId(customerId)
-                .email(email)
-                .password("temp")  // 임시 비밀번호 (실제로는 사용되지 않음)
-                .name("JWT_CUSTOMER")  // 임시 이름
-                .nickname("JWT_CUSTOMER")  // 임시 닉네임
-                .build();
+        // 역할에 따라 UserDetails 생성
+        UserDetails userDetails;
 
-        // UserDetails에 회원 정보 객체 담기
-        CustomUserDetails customUserDetails = new CustomUserDetails(customerEntity);
+        if ("ROLE_CUSTOMER".equals(role)) {
+            // Customer 처리
+            Long customerId = jwtUtil.getCustomerId(accessToken);
+
+            CustomerEntity customerEntity = CustomerEntity.builder()
+                    .customerId(customerId)
+                    .email(email)
+                    .password("temp")
+                    .name("JWT_CUSTOMER")
+                    .nickname("JWT_CUSTOMER")
+                    .build();
+
+            userDetails = new CustomUserDetails(customerEntity);
+
+        } else if ("ROLE_SELLER".equals(role)) {
+            // Seller 처리
+            Long sellerId = jwtUtil.getSellerId(accessToken);
+
+            SellerEntity sellerEntity = SellerEntity.builder()
+                    .sellerId(sellerId)
+                    .email(email)
+                    .password("temp")
+                    .companyName("JWT_SELLER")
+                    .businessNumber("000-00-00000")
+                    .isVerified(true)
+                    .build();
+
+            userDetails = new SellerUserDetails(sellerEntity);
+
+        } else {
+            log.warn("지원하지 않는 역할: {}", role);
+            response.setContentType("text/plain; charset=UTF-8");
+            PrintWriter writer = response.getWriter();
+            writer.print("unsupported role");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
 
         // 스프링 시큐리티 인증 토큰 생성
         Authentication authToken = new UsernamePasswordAuthenticationToken(
-                customUserDetails, null, customUserDetails.getAuthorities());
+                userDetails, null, userDetails.getAuthorities());
 
         // 세션에 사용자 등록
         SecurityContextHolder.getContext().setAuthentication(authToken);
 
-        log.debug("Spring Security 인증 컨텍스트에 사용자 등록 완료");
+        log.debug("Spring Security 인증 컨텍스트에 사용자 등록 완료: role={}", role);
 
         filterChain.doFilter(request, response);
     }
