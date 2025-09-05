@@ -86,15 +86,21 @@ public class SecurityConfig {
 
                 // URL별 접근 권한 설정
                 .authorizeHttpRequests((auth) -> auth
-                        // 인증 불필요 경로 (통일된 API 경로)
+                        // 인증 불필요 경로
                         .requestMatchers("/api/customer/login", "/", "/join").permitAll()
                         .requestMatchers("/api/seller/login", "/api/seller/join").permitAll()
                         .requestMatchers("/api/auth/refresh").permitAll()
                         .requestMatchers("/logout").permitAll()
                         .requestMatchers("/test", "/profile").permitAll()
 
+                        // Product 공개 API (인증 불필요)
+                        .requestMatchers("/api/products", "/api/products/**").permitAll()
+
                         // 관리자 페이지 접근 거부
                         .requestMatchers("/admin").denyAll()
+
+                        // 판매자 API (ROLE_SELLER 권한)
+                        .requestMatchers("/api/seller/**").hasRole("SELLER")
 
                         // 나머지는 인증 필요
                         .anyRequest().authenticated()
@@ -102,11 +108,11 @@ public class SecurityConfig {
 
                 .addFilterBefore(new CustomLogoutFilter(jwtUtil, refreshTokenRepository), LogoutFilter.class)
 
-                // Customer 로그인 필터 (기존)
+                // Customer 로그인 필터
                 .addFilterAt(new LoginFilter(customerAuthenticationManager(), jwtUtil, refreshTokenRepository),
                         UsernamePasswordAuthenticationFilter.class)
 
-                // Seller 로그인 필터 (새로 추가)
+                // Seller 로그인 필터
                 .addFilterAt(new SellerLoginFilter(sellerAuthenticationManager(), jwtUtil, sellerRefreshTokenService),
                         UsernamePasswordAuthenticationFilter.class)
 
