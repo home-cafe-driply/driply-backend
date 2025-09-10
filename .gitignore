@@ -226,3 +226,6 @@ gradle-app.setting
 application-secret.yml
 
 etMaxAge(maxAgeSec);
+
+## json
+src/main/resources/gcp-service-account.json
